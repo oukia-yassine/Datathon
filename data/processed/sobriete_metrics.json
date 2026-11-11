@@ -1,0 +1,15 @@
+{
+  "source_file": "natura2000_zsc_zps_normandie.geojson",
+  "optimized_file": "natura2000_simplifie.geojson",
+  "features_count": 96,
+  "tolerance_deg": 0.001,
+  "coord_precision_decimals": 4,
+  "raw_size_bytes": 16561234,
+  "raw_size_mb": 15.79,
+  "optimized_size_bytes": 1076842,
+  "optimized_size_mb": 1.03,
+  "size_reduction_pct": 93.5,
+  "vertices_before": 381801,
+  "vertices_after": 27446,
+  "vertices_reduction_pct": 92.8
+}
