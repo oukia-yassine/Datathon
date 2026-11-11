@@ -15,3 +15,8 @@ venv/
 
 # System
 .DS_Store
+
+.pytest_cache/
+__pycache__/
+.coverage
+htmlcov/
