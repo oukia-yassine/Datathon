@@ -3,7 +3,7 @@
 **Datathon Normandie 2026 — « Biodiversité et activités humaines »**  
 *Plateforme cartographique d'aide à la décision territoriale pour analyser les proximités et interactions entre installations équestres et sites Natura 2000 en Normandie.*
 
-- **Équipe :** Youssef CHEDLY (Développeur), Yassir DOURAID (Développeur), Yassine OUKIA (Data Analyst)
+- **Équipe :** Youssef CHEDLY, Yassir DOURAID, Yassine OUKIA
 - **Licence du code :** MIT ([LICENSE](LICENSE)) — conforme à l'article 7 du règlement du Datathon Normandie 2026
 
 ---
