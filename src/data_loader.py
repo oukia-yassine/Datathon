@@ -90,7 +90,6 @@ def load_installations(
     for col in ("dans_zsc", "zsc_a_1km", "dans_zps", "zps_a_1km", "dans_natura", "natura_a_1km"):
         df[col] = _clean_bool_series(df[col])
 
-    # Enrichissement par les adresses et dates issues du CSV équipements (même identifiant inst_numero)
     if equipments_df is not None and not equipments_df.empty:
         eq_meta = (
             equipments_df.groupby("inst_numero", as_index=False)
@@ -110,7 +109,6 @@ def load_installations(
     df["inst_cp"] = df["inst_cp"].fillna("")
     df["equip_maj_max"] = df["equip_maj_max"].fillna("")
 
-    # Contexte territorial : densité communale & cumul d'installations autour des sites Natura 2000
     commune_counts: Counter[str] = Counter(df["commune"].fillna("").astype(str).str.strip())
     site_1km_counts: Counter[str] = Counter()
     for _, r in df[df["natura_a_1km"]].iterrows():

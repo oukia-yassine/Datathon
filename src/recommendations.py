@@ -75,7 +75,6 @@ _TYPOLOGY_SENSITIVITY_WEIGHTS: dict[str, float] = {
 }
 
 
-# Règles métier par typologie écologique réelle (volet positif + volet vigilance)
 _TYPOLOGY_RULES: dict[str, dict[str, ActionItem]] = {
     "vallees_cours_eau": {
         "positive": ActionItem(
@@ -233,7 +232,6 @@ def compute_vigilance_index(
 
     Note : L'IVT mesure une priorité d'examen et de dialogue territorial (zéro preuve d'impact).
     """
-    # 1. Pilier Distance écologique / métrique EPSG:2154 (0 à 40 pts)
     if dans_natura or dist_m == 0.0:
         dim_distance = 40.0
         distance_detail = "40,0 / 40 — Recouvrement direct du périmètre (0 m)"
@@ -250,7 +248,6 @@ def compute_vigilance_index(
         dim_distance = round(max(0.0, 2.0 - ((dist_m - 5000.0) / 5000.0) * 2.0), 1)
         distance_detail = f"{dim_distance:.1f} / 40 — Éloignement important ({dist_m:.0f} m > 5 km)"
 
-    # 2. Pilier Proximité des habitats ZSC / oiseaux ZPS & cumul multi-sites (0 à 25 pts)
     dual_1km = zsc_1km and zps_1km
     zsc_pts = 8.0 if zsc_1km else (4.0 if dist_zsc_m <= 2000.0 else 0.0)
     zps_pts = 8.0 if zps_1km else (4.0 if dist_zps_m <= 2000.0 else 0.0)
@@ -273,7 +270,6 @@ def compute_vigilance_index(
         hab_parts.append(f"{effective_sites_1km} sites ≤ 1 km (+{multi_pts:.1f})")
     habitats_detail = f"{dim_habitats:.1f} / 25 — " + (", ".join(hab_parts) if hab_parts else "Aucun site ZSC/ZPS à ≤ 2 km")
 
-    # 3. Pilier Contexte écologique du milieu (0 à 20 pts)
     base_typ_w = _TYPOLOGY_SENSITIVITY_WEIGHTS.get(primary_typology.key, 13.0)
     expo_factor = 1.0 if dist_m <= 1000.0 else (0.6 if dist_m <= 3000.0 else 0.3)
     dim_ecologie = round(min(20.0, base_typ_w * expo_factor), 1)
@@ -282,7 +278,6 @@ def compute_vigilance_index(
         f"(base {base_typ_w:.0f} × facteur d'exposition {expo_factor:.1f})"
     )
 
-    # 4. Pilier Contexte territorial : profil Data ES + co-présence site & commune (0 à 15 pts)
     equip_base = min(5.0, float(max(1, nb_eq)))
     if "Itinérance & plein air étendu" in eq_tags:
         practice_pts = 3.0
@@ -349,7 +344,6 @@ def build_recommendations(
     zps_1km = _to_bool(row.get("zps_a_1km")) or dist_zps_m <= 1000.0
     dual_1km = zsc_1km and zps_1km
 
-    # Garde contre l'écart ponctuel entre buffer(quad_segs=16) et distance exacte à 999,7 m
     raw_sites_1km = _to_int(row.get("nombre_natura_dans_1km"), 0)
     effective_sites_1km = max(raw_sites_1km, 1 if natura_1km else 0)
 
@@ -364,7 +358,6 @@ def build_recommendations(
         else:
             vigilance_label = "> 1000 m"
 
-    # Axe A : Niveau de priorité d'examen
     if dans_natura:
         priority_tier = "Priorité 1 — Interaction directe (dans le périmètre)"
         priority_rank = 1
@@ -382,7 +375,6 @@ def build_recommendations(
         priority_rank = 4
         priority_color = "#15803d"
 
-    # Axe B : Typologies écologiques réelles des sites Natura 2000
     natura_code = str(row.get("natura_plus_proche_code") or "")
     natura_nom = str(row.get("natura_plus_proche_nom") or "")
     primary_typology = classify_natura_site(natura_code, natura_nom)
@@ -400,13 +392,11 @@ def build_recommendations(
         if cand_typ.key != primary_typology.key:
             secondary_typology = cand_typ
 
-    # Axe C : Profil d'équipements et d'activités
     types_eq = str(row.get("types_equipements") or "")
     activites = str(row.get("activites") or "")
     nb_eq = _to_int(row.get("nombre_equipements"), 1)
     eq_tags = _detect_equipment_tags(types_eq, activites, nb_eq)
 
-    # Indicateur de Vigilance Territoriale (IVT / 100) — 4 piliers transparents
     vigilance_index = compute_vigilance_index(
         dist_m=dist_m,
         dist_zsc_m=dist_zsc_m,
@@ -424,7 +414,6 @@ def build_recommendations(
     )
     sort_index = vigilance_index.score_total
 
-    # Construction des justifications traçables
     triggers: list[str] = [
         f"Distance au site Natura 2000 le plus proche : {dist_m:.1f} m ({natura_code} — {natura_nom})",
         (
@@ -447,7 +436,6 @@ def build_recommendations(
     positive_levers: list[ActionItem] = []
     vigilance_actions: list[ActionItem] = []
 
-    # 1. Règles liées à l'exposition directe / multi-sites
     if dans_natura:
         positive_levers.append(
             ActionItem(
@@ -482,7 +470,6 @@ def build_recommendations(
             )
         )
 
-    # 2. Règles liées à la typologie écologique réelle (si <= 1 km : ciblé ; si > 1 km : informatif)
     rule_primary = _TYPOLOGY_RULES[primary_typology.key]
     if natura_1km:
         positive_levers.append(rule_primary["positive"])
@@ -512,7 +499,6 @@ def build_recommendations(
             )
         )
 
-    # 3. Règle spécifique Directive Oiseaux (ZPS) dans 1 km
     if zps_1km:
         vigilance_actions.append(
             ActionItem(
@@ -525,7 +511,6 @@ def build_recommendations(
             )
         )
 
-    # 4. Règles liées aux équipements et pratiques Data ES (lorsque l'installation est à <= 1 km)
     if natura_1km:
         if "Itinérance & plein air étendu" in eq_tags:
             vigilance_actions.append(

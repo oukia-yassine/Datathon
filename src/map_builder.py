@@ -97,64 +97,6 @@ def build_interactive_map(
         folium.Element("<style>.leaflet-control-attribution{display:none !important;}</style>")
     )
 
-    # 1. Couche écologique ZSC (Habitats)
-    if show_zsc and natura_geojson:
-        zsc_features = [
-            ft for ft in natura_geojson.get("features", [])
-            if (ft.get("properties") or {}).get("type_zone") == "ZSC"
-        ]
-        if zsc_features:
-            zsc_layer = folium.FeatureGroup(name="Natura 2000 — ZSC (Habitats)", show=True)
-            folium.GeoJson(
-                {"type": "FeatureCollection", "features": zsc_features},
-                style_function=lambda _: {
-                    "fillColor": "#0d9488",
-                    "color": "#0f766e",
-                    "weight": 1.4,
-                    "fillOpacity": 0.22,
-                },
-                highlight_function=lambda _: {
-                    "fillOpacity": 0.42,
-                    "weight": 2.5,
-                },
-                tooltip=folium.GeoJsonTooltip(
-                    fields=["SITENAME", "typologie_label", "installations_proches_1km"],
-                    aliases=["Zone ZSC (Habitats) :", "Milieu naturel :", "Installations à moins d'1 km :"],
-                    localize=True,
-                ),
-            ).add_to(zsc_layer)
-            zsc_layer.add_to(m)
-
-    # 2. Couche écologique ZPS (Oiseaux)
-    if show_zps and natura_geojson:
-        zps_features = [
-            ft for ft in natura_geojson.get("features", [])
-            if (ft.get("properties") or {}).get("type_zone") == "ZPS"
-        ]
-        if zps_features:
-            zps_layer = folium.FeatureGroup(name="Natura 2000 — ZPS (Oiseaux)", show=True)
-            folium.GeoJson(
-                {"type": "FeatureCollection", "features": zps_features},
-                style_function=lambda _: {
-                    "fillColor": "#2563eb",
-                    "color": "#1d4ed8",
-                    "weight": 1.6,
-                    "dashArray": "4 3",
-                    "fillOpacity": 0.16,
-                },
-                highlight_function=lambda _: {
-                    "fillOpacity": 0.36,
-                    "weight": 2.6,
-                },
-                tooltip=folium.GeoJsonTooltip(
-                    fields=["SITENAME", "typologie_label", "installations_proches_1km"],
-                    aliases=["Zone ZPS (Oiseaux) :", "Milieu naturel :", "Installations à moins d'1 km :"],
-                    localize=True,
-                ),
-            ).add_to(zps_layer)
-            zps_layer.add_to(m)
-
-    # 3. Cercles d'analyse spatiale (500 m et 1 000 m) autour de l'installation sélectionnée
     if show_buffers and selected_row is not None:
         buf_layer = folium.FeatureGroup(name="Rayons d'analyse (500 m / 1 km)", show=True)
         sel_lat = float(selected_row["latitude"])
@@ -183,10 +125,63 @@ def build_interactive_map(
         ).add_to(buf_layer)
         buf_layer.add_to(m)
 
-    # 4. Couche activités équestres (points)
+    if show_zsc and natura_geojson:
+        zsc_features = [
+            ft for ft in natura_geojson.get("features", [])
+            if (ft.get("properties") or {}).get("type_zone") == "ZSC"
+        ]
+        if zsc_features:
+            zsc_layer = folium.FeatureGroup(name="Natura 2000 — ZSC (Habitats)", show=True)
+            folium.GeoJson(
+                {"type": "FeatureCollection", "features": zsc_features},
+                style_function=lambda _: {
+                    "fillColor": "#0d9488",
+                    "color": "#0f766e",
+                    "weight": 1.4,
+                    "fillOpacity": 0.22,
+                },
+                highlight_function=lambda _: {
+                    "fillOpacity": 0.42,
+                    "weight": 2.5,
+                },
+                tooltip=folium.GeoJsonTooltip(
+                    fields=["SITENAME", "typologie_label", "installations_proches_1km"],
+                    aliases=["Zone ZSC (Habitats) :", "Milieu naturel :", "Installations à moins d'1 km :"],
+                    localize=True,
+                ),
+            ).add_to(zsc_layer)
+            zsc_layer.add_to(m)
+
+    if show_zps and natura_geojson:
+        zps_features = [
+            ft for ft in natura_geojson.get("features", [])
+            if (ft.get("properties") or {}).get("type_zone") == "ZPS"
+        ]
+        if zps_features:
+            zps_layer = folium.FeatureGroup(name="Natura 2000 — ZPS (Oiseaux)", show=True)
+            folium.GeoJson(
+                {"type": "FeatureCollection", "features": zps_features},
+                style_function=lambda _: {
+                    "fillColor": "#2563eb",
+                    "color": "#1d4ed8",
+                    "weight": 1.6,
+                    "dashArray": "4 3",
+                    "fillOpacity": 0.16,
+                },
+                highlight_function=lambda _: {
+                    "fillOpacity": 0.36,
+                    "weight": 2.6,
+                },
+                tooltip=folium.GeoJsonTooltip(
+                    fields=["SITENAME", "typologie_label", "installations_proches_1km"],
+                    aliases=["Zone ZPS (Oiseaux) :", "Milieu naturel :", "Installations à moins d'1 km :"],
+                    localize=True,
+                ),
+            ).add_to(zps_layer)
+            zps_layer.add_to(m)
+
     if show_installations and not df.empty:
         pts_layer = folium.FeatureGroup(name="Installations équestres", show=True)
-        # Dessiner d'abord les plus éloignés pour garder les prioritaires et la sélection visibles au-dessus
         ordered = df.copy()
         ordered["_is_sel"] = ordered["inst_numero"] == (selected_inst_id or "")
         ordered = ordered.sort_values(["_is_sel", "priorite_rang"], ascending=[True, False])
@@ -252,7 +247,6 @@ def build_interactive_map(
 
         pts_layer.add_to(m)
 
-    # Recadrage modéré si filtrage actif (sans zoom excessif sur quelques points isolés)
     if not df.empty and not focus_selected and len(df) < 421:
         min_lat, max_lat = float(df["latitude"].min()), float(df["latitude"].max())
         min_lon, max_lon = float(df["longitude"].min()), float(df["longitude"].max())

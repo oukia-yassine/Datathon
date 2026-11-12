@@ -26,7 +26,7 @@ from src.data_loader import (
 from src.map_builder import BASEMAP_CHOICES, build_interactive_map
 from src.natura_taxonomy import TYPOLOGIES, classify_natura_site
 from src.ui_components import (
-    CUSTOM_CSS,
+    get_theme_css,
     render_collapsible_action_cards,
     render_empty_selection_panel,
     render_french_table,
@@ -51,7 +51,20 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+if "dark_mode" not in st.session_state:
+    st.session_state["dark_mode"] = False
+
+dark_mode = bool(st.session_state["dark_mode"])
+st.markdown(get_theme_css(dark_mode), unsafe_allow_html=True)
+
+if st.button(
+    "",
+    icon=":material/light_mode:" if dark_mode else ":material/dark_mode:",
+    key="theme_toggle_btn",
+    help="Passer en mode clair" if dark_mode else "Passer en mode sombre",
+):
+    st.session_state["dark_mode"] = not dark_mode
+    st.rerun()
 
 
 @st.cache_data(show_spinner="Chargement des données territoriales...")
@@ -89,9 +102,6 @@ def _reset_filters() -> None:
             del st.session_state[key]
 
 
-# ==============================================================================
-# BARRE LATÉRALE — FILTRES TERRITORIAUX (TOUT SÉLECTIONNÉ PAR DÉFAUT)
-# ==============================================================================
 with st.sidebar:
     st.markdown("### Filtres territoriaux")
     st.button(
@@ -195,7 +205,6 @@ with st.sidebar:
         )
 
 
-# Application des filtres sur les 421 installations
 mask = (
     inst_df["departement"].isin(sel_depts)
     & inst_df["niveau_vigilance_descriptif"].isin(sel_vig)
@@ -244,9 +253,6 @@ with st.sidebar:
     st.caption(f"Sélection active : **{len(df_filtered)} / {len(inst_df)}** installations normandes")
 
 
-# ==============================================================================
-# EN-TÊTE & KPIs DYNAMIQUES
-# ==============================================================================
 st.markdown(
     """
     <div class="hero-banner">
@@ -255,8 +261,29 @@ st.markdown(
             Plateforme d'aide à la décision territoriale : interactions entre activités équestres et zones naturelles protégées (Natura 2000)
         </div>
         <div class="hero-pills">
-            <span class="hero-pill">421 installations et 1 175 équipements équestres</span>
-            <span class="hero-pill">96 zones naturelles (82 ZSC et 14 ZPS)</span>
+            <span class="hero-pill">
+                421 installations et 1 175 équipements équestres
+                <span class="hero-tip-wrap">
+                    <span class="hero-tip-btn" tabindex="0">?</span>
+                    <span class="hero-tip-box">
+                        <strong>Installation vs équipement : quelle différence ?</strong><br/><br/>
+                        <strong>Équipement équestre (1 175) :</strong> unité pratique ou infrastructure recensée sur le terrain (carrière, manège, piste de galop, écurie, parcours de cross…).<br/><br/>
+                        <strong>Installation (421) :</strong> site géographique regroupant un ou plusieurs équipements (ex. un centre équestre avec 2 carrières et 1 manège = 1 installation pour 3 équipements).<br/><br/>
+                        Ce regroupement évite de compter plusieurs fois un même établissement dans les distances et le calcul de l'IVT.
+                    </span>
+                </span>
+            </span>
+            <span class="hero-pill">
+                96 zones naturelles (82 ZSC et 14 ZPS)
+                <span class="hero-tip-wrap">
+                    <span class="hero-tip-btn" tabindex="0">?</span>
+                    <span class="hero-tip-box">
+                        <strong>Que signifient ZSC et ZPS ?</strong><br/><br/>
+                        <strong>ZSC (Zone Spéciale de Conservation) :</strong> site Natura 2000 désigné au titre de la directive <em>Habitats</em> pour protéger des milieux naturels, la flore et la faune (hors oiseaux).<br/><br/>
+                        <strong>ZPS (Zone de Protection Spéciale) :</strong> site Natura 2000 désigné au titre de la directive <em>Oiseaux</em> pour préserver les espèces d'oiseaux sauvages menacées et leurs habitats.
+                    </span>
+                </span>
+            </span>
             <span class="hero-pill">
                 IVT (Indicateur de Vigilance Territoriale)
                 <span class="hero-tip-wrap">
@@ -300,12 +327,6 @@ render_kpi_row(
     nb_communes=nb_communes,
 )
 
-st.write("")
-
-
-# ==============================================================================
-# ONGLETS PRINCIPAUX
-# ==============================================================================
 tab_map, tab_dash, tab_method = st.tabs(
     [
         "Carte interactive & Fiche territoriale",
@@ -315,9 +336,6 @@ tab_map, tab_dash, tab_method = st.tabs(
 )
 
 
-# ------------------------------------------------------------------------------
-# ONGLET 1 : CARTE + FICHE D'IDENTITÉ + PISTES D'ACTION PLEINE LARGEUR
-# ------------------------------------------------------------------------------
 with tab_map:
     if df_filtered.empty:
         st.warning(
@@ -327,7 +345,6 @@ with tab_map:
     else:
         available_ids = df_filtered["inst_numero"].tolist()
 
-        # Application d'une sélection différée (clic carte) AVANT le selectbox
         if "pending_inst_id" in st.session_state:
             cand_id = st.session_state.pop("pending_inst_id")
             if cand_id in available_ids:
@@ -346,7 +363,7 @@ with tab_map:
         label_map = {
             r["inst_numero"]: (
                 f"{r['nom_installation']} — {r['commune']} ({r['departement_code']}) "
-                f"— {r['distance_natura_m']:.0f} m — IVT {r['ivt_score']:.0f} %"
+                f"— {r['distance_natura_m']:.1f} m — IVT {r['ivt_score']:.1f} %"
             )
             for _, r in df_filtered.iterrows()
         }
@@ -362,8 +379,11 @@ with tab_map:
         )
 
         selected_id = st.session_state.get("selected_inst_id")
+        if selected_id != st.session_state.get("_prev_selected_id"):
+            st.session_state["_prev_selected_id"] = selected_id
+            if selected_id is not None:
+                st.session_state["focus_selected_chk"] = True
 
-        # Bloc principal haut : Carte à gauche | Fiche synthétique ou accueil à droite
         col_map, col_card = st.columns([7, 5], gap="large")
 
         with col_map:
@@ -395,7 +415,7 @@ with tab_map:
             with tb2:
                 focus_selected = st.checkbox(
                     "Zoomer sur la sélection",
-                    value=False,
+                    value=True,
                     disabled=(selected_id is None),
                     help=(
                         "Sélectionnez d'abord une installation sur la carte ou dans la liste ci-dessus pour pouvoir zoomer dessus."
@@ -461,7 +481,6 @@ with tab_map:
                 diag = diagnostics[selected_id]
                 render_installation_identity_and_ivt(sel_row, selected_id, diag)
 
-        # Bloc détaillé pleine largeur en dessous (affiché dès qu'une installation est sélectionnée)
         if selected_id is not None:
             sel_row = df_filtered[df_filtered["inst_numero"] == selected_id].iloc[0]
             diag = diagnostics[selected_id]
@@ -470,10 +489,10 @@ with tab_map:
             st.markdown(f"#### Diagnostic et pistes d'action territoriales — {sel_row['nom_installation']}")
 
             st.markdown("##### Interactions positives et atouts à valoriser")
-            render_collapsible_action_cards(diag.positive_levers, positive=True)
+            render_collapsible_action_cards(diag.positive_levers, positive=True, dark_mode=dark_mode)
 
             st.markdown("##### Points de vigilance et actions de terrain à étudier")
-            render_collapsible_action_cards(diag.vigilance_actions, positive=False)
+            render_collapsible_action_cards(diag.vigilance_actions, positive=False, dark_mode=dark_mode)
 
             with st.expander("Traçabilité : calcul de l'IVT et justification des pistes"):
                 ivt = diag.vigilance_index
@@ -519,11 +538,12 @@ with tab_map:
                     table_id="equipments",
                     height=260,
                     wide_cols={"Équipement", "Activités"},
+                    dark_mode=dark_mode,
                 )
 
             st.markdown(
                 """<div class="disclaimer-box">
-                    <strong>Note d'interprétation :</strong> l'Indicateur de Vigilance Territoriale (IVT) et la distance mesurée
+                    <strong>Interprétation :</strong> l'Indicateur de Vigilance Territoriale (IVT) et la distance mesurée
                     évaluent une priorité d'examen géographique entre un établissement équestre et des périmètres Natura 2000.
                     Ils ne prouvent aucune dégradation écologique et servent à orienter les diagnostics et le dialogue territorial.
                 </div>""",
@@ -531,42 +551,61 @@ with tab_map:
             )
 
 
-# ------------------------------------------------------------------------------
-# ONGLET 2 : TABLEAU DE BORD & PRIORISATION TERRITORIALE
-# ------------------------------------------------------------------------------
 _PLOTLY_CONFIG = {
     "displayModeBar": True,
     "displaylogo": False,
+    "showTips": False,
+    "modeBarButtonsToRemove": ["select2d", "lasso2d"],
 }
 
 
 def _render_chart(fig, title: str, *, height: int = 410, bottom_margin: int = 115) -> None:
     """Affiche un graphique Plotly avec titre externe, barre d'outils visible, axes espacés et infobulles lisibles."""
+    axis_title_col = "#f8fafc" if dark_mode else "#0f172a"
+    axis_tick_col = "#cbd5e1" if dark_mode else "#334155"
+    grid_col = "rgba(148, 163, 184, 0.18)" if dark_mode else "rgba(15, 23, 42, 0.08)"
+    plot_bg = "rgba(17, 24, 39, 0.55)" if dark_mode else "#ffffff"
+    hover_bg = "#1e293b" if dark_mode else "#ffffff"
+    hover_border = "#475569" if dark_mode else "#94a3b8"
+
     st.markdown(
-        f"<div style='font-size:0.97rem;font-weight:700;color:#0f172a;margin:0.35rem 0 0.25rem 0;'>"
-        f"{html.escape(title)}</div>",
+        f"<div class='chart-title-bar'>{html.escape(title)}</div>",
         unsafe_allow_html=True,
     )
     fig.update_xaxes(
         automargin=True,
-        title_font=dict(size=12.5, color="#0f172a"),
-        tickfont=dict(size=11.5, color="#334155"),
+        title_font=dict(size=12.5, color=axis_title_col),
+        tickfont=dict(size=11.5, color=axis_tick_col),
         title_standoff=24,
+        gridcolor=grid_col,
+        zerolinecolor=grid_col,
     )
     fig.update_yaxes(
         automargin=True,
-        title_font=dict(size=12.5, color="#0f172a"),
-        tickfont=dict(size=11.5, color="#334155"),
+        title_font=dict(size=12.5, color=axis_title_col),
+        tickfont=dict(size=11.5, color=axis_tick_col),
         title_standoff=16,
+        gridcolor=grid_col,
+        zerolinecolor=grid_col,
     )
     fig.update_layout(
+        template="plotly_dark" if dark_mode else "plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor=plot_bg,
+        font=dict(color=axis_title_col),
+        legend=dict(font=dict(color=axis_tick_col)),
+        modebar=dict(
+            bgcolor="#e2e8f0",
+            color="#0f172a",
+            activecolor="#000000",
+        ),
         title=None,
         height=height,
         margin=dict(t=48, b=bottom_margin, l=15, r=15),
         hoverlabel=dict(
-            bgcolor="#ffffff",
-            bordercolor="#94a3b8",
-            font=dict(size=13.5, family="Inter, Segoe UI, Arial, sans-serif", color="#0f172a"),
+            bgcolor=hover_bg,
+            bordercolor=hover_border,
+            font=dict(size=13.5, family="Inter, Segoe UI, Arial, sans-serif", color=axis_title_col),
             align="left",
             namelength=-1,
         ),
@@ -592,7 +631,10 @@ with tab_dash:
                 x="departement",
                 y="installations",
                 color="niveau_vigilance_descriptif",
-                category_orders={"niveau_vigilance_descriptif": VIGILANCE_ORDER},
+                category_orders={
+                    "departement": sorted(df_filtered["departement"].unique().tolist()),
+                    "niveau_vigilance_descriptif": VIGILANCE_ORDER,
+                },
                 color_discrete_map=VIGILANCE_COLORS,
                 labels={
                     "departement": "<b>Département</b>",
@@ -658,8 +700,12 @@ with tab_dash:
                         "Installations à ≤ 1 km : <b>%{x}</b><extra></extra>"
                     )
                 )
+                fig_hot.update_yaxes(
+                    categoryorder="array",
+                    categoryarray=fig_hot_df["short_label"].tolist(),
+                )
                 fig_hot.update_layout(
-                    yaxis_title="",
+                    yaxis_title="<b>Sites Natura 2000</b>",
                     legend=dict(
                         orientation="h",
                         yanchor="top",
@@ -672,7 +718,6 @@ with tab_dash:
                 )
                 _render_chart(fig_hot, "Top sites Natura 2000 avec le plus d'installations à ≤ 1 km", height=430, bottom_margin=122)
 
-        # Ligne dédiée à l'Indicateur de Vigilance Territoriale (IVT)
         c_ivt1, c_ivt2 = st.columns(2, gap="large")
         with c_ivt1:
             top_ivt = df_filtered.sort_values(
@@ -767,10 +812,41 @@ with tab_dash:
                     "<extra></extra>"
                 )
             )
-            fig_scatter.add_vline(x=1000, line_dash="dash", line_color="#64748b")
-            fig_scatter.add_hline(y=70, line_dash="dot", line_color="#b91c1c")
-            fig_scatter.add_hline(y=40, line_dash="dot", line_color="#ca8a04")
+            ann_bg = "rgba(15,23,42,0.88)" if dark_mode else "rgba(255,255,255,0.88)"
+            vline_col = "#cbd5e1" if dark_mode else "#1e293b"
+            h_high_col = "#f87171" if dark_mode else "#b91c1c"
+            h_mod_col = "#fbbf24" if dark_mode else "#b45309"
+            max_scatter_x = max(float(df_filtered["distance_natura_m"].max()) * 1.05, 1500.0)
+            fig_scatter.add_vline(
+                x=1000,
+                line_dash="dash",
+                line_color=vline_col,
+                annotation_text="Rayon 1 km (1 000 m)",
+                annotation_position="top left",
+                annotation_font=dict(size=11.5, color=vline_col),
+                annotation_bgcolor=ann_bg,
+            )
+            fig_scatter.add_hline(
+                y=70,
+                line_dash="dot",
+                line_color=h_high_col,
+                annotation_text="Seuil prioritaire (IVT ≥ 70 %)",
+                annotation_position="top right",
+                annotation_font=dict(size=11.5, color=h_high_col),
+                annotation_bgcolor=ann_bg,
+            )
+            fig_scatter.add_hline(
+                y=40,
+                line_dash="dot",
+                line_color=h_mod_col,
+                annotation_text="Seuil vigilance modérée (IVT ≥ 40 %)",
+                annotation_position="top right",
+                annotation_font=dict(size=11.5, color=h_mod_col),
+                annotation_bgcolor=ann_bg,
+            )
             fig_scatter.update_layout(
+                xaxis=dict(range=[-350, max_scatter_x]),
+                yaxis=dict(range=[0, 102]),
                 legend=dict(
                     orientation="h",
                     xref="container",
@@ -783,7 +859,7 @@ with tab_dash:
                     entrywidthmode="fraction",
                     title_text="",
                     font=dict(size=11.5),
-                )
+                ),
             )
             _render_chart(fig_scatter, "Relation Distance métrique et Indice de Vigilance (IVT)", height=485, bottom_margin=138)
 
@@ -811,10 +887,12 @@ with tab_dash:
                 hole=0.45,
             )
             fig_typ.update_traces(
+                textposition="inside",
+                insidetextorientation="horizontal",
                 hovertemplate=(
                     "<b>%{label}</b><br>"
                     "Installations : <b>%{value}</b> (%{percent})<extra></extra>"
-                )
+                ),
             )
             fig_typ.update_layout(
                 legend=dict(
@@ -863,8 +941,8 @@ with tab_dash:
         st.markdown("#### Synthèse départementale")
         dep_summary = compute_department_summary(df_filtered).rename(
             columns={
-                "departement_code": "Code",
                 "departement": "Département",
+                "departement_code": "Code",
                 "installations": "Installations",
                 "equipements": "Équipements",
                 "dans_natura": "À l'intérieur (0 m)",
@@ -873,18 +951,31 @@ with tab_dash:
                 "distance_mediane_m": "Distance médiane (m)",
                 "ivt_moyen": "IVT moyen (%)",
             }
-        )
+        )[
+            [
+                "Département",
+                "Code",
+                "Installations",
+                "Équipements",
+                "À l'intérieur (0 m)",
+                "À ≤ 1 km",
+                "Part ≤ 1 km (%)",
+                "Distance médiane (m)",
+                "IVT moyen (%)",
+            ]
+        ]
         render_french_table(
             dep_summary,
             table_id="dep_summary",
             height=240,
             numeric_suffixes={"Part ≤ 1 km (%)": " %", "IVT moyen (%)": " %"},
+            dark_mode=dark_mode,
         )
 
         st.markdown("#### Liste de priorisation des diagnostics territoriaux")
         with st.container(border=True):
             st.markdown(
-                "<div style='font-size:0.9rem;font-weight:700;color:#0f172a;margin-bottom:0.45rem;'>"
+                "<div class='dash-sort-title'>"
                 "Paramètres de tri et de sélection du tableau (choisissez votre critère)</div>",
                 unsafe_allow_html=True,
             )
@@ -955,9 +1046,12 @@ with tab_dash:
                 "typologie_short": "Typologie écologique",
             }
         )
-        st.caption(
-            f"Affichage de **{len(table_df)}** installation(s) sur **{len(df_filtered)}** filtrées — "
-            f"triées par **{sort_col_choice}** ({sort_dir.lower()})."
+        st.markdown(
+            f"<div class='dash-filter-summary'>"
+            f"Affichage de <strong>{len(table_df)}</strong> installation(s) sur <strong>{len(df_filtered)}</strong> filtrées "
+            f"— triées par <strong>{html.escape(sort_col_choice)}</strong> ({html.escape(sort_dir.lower())})."
+            f"</div>",
+            unsafe_allow_html=True,
         )
         render_french_table(
             table_df,
@@ -965,6 +1059,7 @@ with tab_dash:
             height=380,
             wide_cols={"Installation", "Site Natura le plus proche", "Typologie écologique"},
             numeric_suffixes={"IVT (%)": " %"},
+            dark_mode=dark_mode,
         )
 
         dl1, dl2 = st.columns(2)
@@ -973,6 +1068,7 @@ with tab_dash:
             data=table_df.to_csv(index=False).encode("utf-8-sig"),
             file_name="equivigie_priorisation_normandie.csv",
             mime="text/csv",
+            icon=":material/download:",
             width="stretch",
         )
         dl2.download_button(
@@ -980,13 +1076,11 @@ with tab_dash:
             data=dep_summary.to_csv(index=False).encode("utf-8-sig"),
             file_name="equivigie_synthese_departements.csv",
             mime="text/csv",
+            icon=":material/download:",
             width="stretch",
         )
 
 
-# ------------------------------------------------------------------------------
-# ONGLET 3 : MÉTHODOLOGIE & SOURCES
-# ------------------------------------------------------------------------------
 with tab_method:
     st.markdown("### Méthodologie")
 
@@ -1039,46 +1133,64 @@ with tab_method:
     st.markdown("---")
     st.markdown("### Indicateur de Vigilance Territoriale (IVT en %)")
     st.markdown(
-        "<div class='idea-block'><strong>Principe général :</strong> "
-        "l'IVT est un indice composite (0 à 100 %) 100 % déterministe, auditable et non culpabilisant destiné aux collectivités, "
-        "EPCI, PNR et animateurs Natura 2000 pour hiérarchiser les diagnostics de terrain à partir de 4 piliers complémentaires.</div>",
+        "<div class='idea-block' style='font-size:1.02rem;line-height:1.65;margin-bottom:1.35rem;'>"
+        "<strong>Principe général :</strong> "
+        "l'IVT est un indice composite <span class='nw'>(0 à 100 %)</span>, <span class='nw'>100 %</span> déterministe, "
+        "auditable et non culpabilisant, destiné aux collectivités, EPCI, PNR et animateurs Natura 2000 "
+        "pour hiérarchiser les diagnostics de terrain à partir de 4 piliers complémentaires."
+        "</div>",
         unsafe_allow_html=True,
     )
 
     p_col1, p_col2 = st.columns(2, gap="large")
     with p_col1:
-        render_idea_blocks(
-            [
-                (
-                    "1. Distance écologique (0 à 40 %) :",
-                    "40 % à 0 m (à l'intérieur), 26 à 36 % entre 0 et 500 m, 15 à 25 % entre 500 et 1 000 m, 2 à 12 % entre 1 et 5 km, et 0 à 2 % au-delà.",
-                ),
-                (
-                    "2. Proximité des habitats ZSC/ZPS et cumul (0 à 25 %) :",
-                    "exposition ZSC Habitats (+8 % à ≤ 1 km, +4 % entre 1 et 2 km), exposition ZPS Oiseaux (+8 % à ≤ 1 km, +4 % entre 1 et 2 km), double exposition ZSC+ZPS (+4 %) et cumul multi-sites ≤ 1 km (+2,5 % par site supplémentaire, plafonné à +5 %).",
-                ),
-            ],
-            as_cards=True,
+        st.markdown(
+            """
+            <div class="idea-card">
+                <div class="ivt-card-title">1. Distance écologique (0 à 40 %)</div>
+                <div class="ivt-pill-line"><strong>À l'intérieur du site (0 m) :</strong> <span class="nw">40 %</span></div>
+                <div class="ivt-pill-line"><strong>Entre 0 et 500 m :</strong> <span class="nw">26 à 36 %</span></div>
+                <div class="ivt-pill-line"><strong>Entre 500 et 1 000 m :</strong> <span class="nw">15 à 25 %</span></div>
+                <div class="ivt-pill-line"><strong>Entre 1 km et 5 km :</strong> <span class="nw">2 à 12 %</span></div>
+                <div class="ivt-pill-line"><strong>Au-delà de 5 km :</strong> <span class="nw">0 à 2 %</span></div>
+            </div>
+            <div class="idea-card">
+                <div class="ivt-card-title">2. Proximité des habitats ZSC/ZPS et cumul (0 à 25 %)</div>
+                <div class="ivt-pill-line"><strong>Exposition ZSC (Habitats) :</strong> <span class="nw">+8 % à 1 km ou moins,</span> <span class="nw">+4 % entre 1 et 2 km</span></div>
+                <div class="ivt-pill-line"><strong>Exposition ZPS (Oiseaux) :</strong> <span class="nw">+8 % à 1 km ou moins,</span> <span class="nw">+4 % entre 1 et 2 km</span></div>
+                <div class="ivt-pill-line"><strong>Double exposition ZSC et ZPS :</strong> <span class="nw">+4 %</span></div>
+                <div class="ivt-pill-line"><strong>Cumul multi-sites (à 1 km ou moins) :</strong> <span class="nw">+2,5 % par site supplémentaire,</span> <span class="nw">plafonné à +5 %</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
     with p_col2:
-        render_idea_blocks(
-            [
-                (
-                    "3. Contexte écologique du milieu (0 à 20 %) :",
-                    "sensibilité intrinsèque de la typologie Natura 2000 (Marais/estuaires 20, Littoral/dunes 18, Vallées/cours d'eau 16, Cavités/chiroptères 15, Bocages/forêts 13) pondérée par l'exposition locale (×1,0 jusqu'à 1 km, ×0,6 entre 1 et 3 km, ×0,3 au-delà).",
-                ),
-                (
-                    "4. Contexte territorial et équipements (0 à 15 %) :",
-                    "nombre d'équipements (1 à 5 %) et emprise des pratiques (itinérance/cross +3 %, infrastructures extérieures +1,5 %, couvert +0,5 %, plafonné à 8 %), complétés par la co-présence d'installations sur le même site Natura 2000 (≤ 4 %) et dans la même commune (≤ 3 %).",
-                ),
-            ],
-            as_cards=True,
+        st.markdown(
+            """
+            <div class="idea-card">
+                <div class="ivt-card-title">3. Contexte écologique du milieu (0 à 20 %)</div>
+                <div class="ivt-pill-line"><strong>Sensibilité par typologie :</strong> <span class="nw">Marais et estuaires (20 %),</span> <span class="nw">Littoral et dunes (18 %),</span> <span class="nw">Vallées et cours d'eau (16 %),</span> <span class="nw">Cavités et chiroptères (15 %),</span> <span class="nw">Bocages et forêts (13 %)</span></div>
+                <div class="ivt-pill-line"><strong>Pondération selon la distance :</strong> <span class="nw">coefficient 1,0 jusqu'à 1 km,</span> <span class="nw">coefficient 0,6 entre 1 et 3 km,</span> <span class="nw">coefficient 0,3 au-delà</span></div>
+            </div>
+            <div class="idea-card">
+                <div class="ivt-card-title">4. Contexte territorial et équipements (0 à 15 %)</div>
+                <div class="ivt-pill-line"><strong>Nombre d'équipements recensés :</strong> <span class="nw">de 1 à 5 %</span></div>
+                <div class="ivt-pill-line"><strong>Emprise des pratiques :</strong> <span class="nw">itinérance ou cross (+3 %),</span> <span class="nw">infrastructures extérieures (+1,5 %),</span> <span class="nw">équipement couvert (+0,5 %),</span> <span class="nw">plafonné à 8 %</span></div>
+                <div class="ivt-pill-line"><strong>Co-présence locale :</strong> <span class="nw">jusqu'à 4 % sur le même site,</span> <span class="nw">jusqu'à 3 % dans la même commune</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
     st.markdown(
-        "<div class='idea-block'><strong>Seuils de lecture :</strong> "
-        "<b>≥ 70 %</b> Vigilance prioritaire, <b>55 à 69,9 %</b> Vigilance élevée, "
-        "<b>40 à 54,9 %</b> Vigilance modérée, <b>&lt; 40 %</b> Veille courante (toutes les installations au-delà d'1 km restent strictement inférieures à 40 %).</div>",
+        "<div class='idea-block' style='font-size:1.02rem;line-height:1.68;margin-top:0.95rem;'>"
+        "<strong>Seuils de lecture :</strong> "
+        "<span class='nw'><strong>≥ 70 %</strong> Vigilance prioritaire</span>, "
+        "<span class='nw'><strong>55 à 69,9 %</strong> Vigilance élevée</span>, "
+        "<span class='nw'><strong>40 à 54,9 %</strong> Vigilance modérée</span>, "
+        "<span class='nw'><strong>&lt; 40 %</strong> Veille courante</span> "
+        "(toutes les installations au-delà d'un kilomètre restent strictement inférieures à <span class='nw'>40 %</span>)."
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -1105,4 +1217,5 @@ with tab_method:
         table_id="natura_ref",
         height=340,
         wide_cols={"Nom du site", "Typologie écologique"},
+        dark_mode=dark_mode,
     )
