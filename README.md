@@ -90,8 +90,6 @@ DATATHON/
 ├── requirements.txt                    # Dépendances Python
 ├── LICENSE                             # Licence libre MIT
 ├── README.md                           # Documentation projet
-├── FICHE_LIVRABLE_DATATHON.md          # Fiche récapitulative officielle (7 rubriques + trame pitch)
-├── SYNTHESE_CADRAGE_DATATHON_2026.md   # Synthèse de cadrage d'équipe
 ├── data/
 │   ├── raw/                            # Fichiers pré-traités fournis par le Data Analyst
 │   └── processed/                      # GeoJSON Natura 2000 allégé + métriques de sobriété
