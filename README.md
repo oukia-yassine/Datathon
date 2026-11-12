@@ -12,7 +12,7 @@
 
 La filière équine est un marqueur identitaire fort de la Normandie. Toutefois, la simple proximité géographique d'une activité équine avec un espace naturel protégé **ne prouve aucun impact négatif** : selon les pratiques et la nature des milieux, les prairies pâturées peuvent aussi contribuer au maintien des paysages ouverts et du bocage.
 
-**ÉquiVigie Normandie** évite le piège d'un « score d'impact » non démontré et propose aux **collectivités, EPCI, Parcs Naturels Régionaux, animateurs Natura 2000 et acteurs de la filière** un outil transparent de **vigilance territoriale** pour :
+**ÉquiVigie Normandie** propose aux **collectivités, EPCI, Parcs Naturels Régionaux, animateurs Natura 2000 et acteurs de la filière** un outil transparent de **vigilance territoriale** pour :
 1. Localiser les activités équestres normandes (`Data ES`) et les sites Natura 2000 (`ZSC` Habitats & `ZPS` Oiseaux).
 2. Mesurer objectivement les proximités géographiques en projection métrique (`EPSG:2154`).
 3. Prioriser les territoires et installations à examiner sur le terrain.
