@@ -3,8 +3,8 @@
 Les distances officielles entre installations équestres et sites Natura 2000
 ont été calculées en amont sur les géométries exactes (EPSG:2154). Ce script
 génère uniquement une version simplifiée des polygones pour l'affichage web
-(réduction ~85-90 % du poids mémoire/transfert) et mesure les gains dans
-``data/processed/sobriete_metrics.json``.
+(réduction de 93,5 % du poids fichier et de 92,8 % des sommets) et mesure les
+gains dans ``data/processed/sobriete_metrics.json``.
 """
 
 from __future__ import annotations
@@ -74,7 +74,6 @@ def optimize_natura_geojson(
         "features": new_features,
     }
     dst_path.parent.mkdir(parents=True, exist_ok=True)
-    # Séparateurs compacts sans indentation superflue (sobriété numérique)
     dst_text = json.dumps(out_collection, ensure_ascii=False, separators=(",", ":"))
     dst_path.write_text(dst_text, encoding="utf-8")
 
