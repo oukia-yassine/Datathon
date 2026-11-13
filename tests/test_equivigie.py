@@ -17,8 +17,8 @@ from src.data_loader import (
     load_natura_geojson,
 )
 from src.map_builder import BASEMAP_CHOICES, build_interactive_map
-from src.natura_taxonomy import SITE_TYPOLOGY_MAP
-from src.recommendations import build_recommendations
+from src.natura_taxonomy import SITE_TYPOLOGY_MAP, TYPOLOGIES
+from src.recommendations import compute_vigilance_index
 
 
 RAW = ROOT / "data" / "raw"
@@ -48,6 +48,12 @@ def test_dataset_counts_and_consistency():
     assert int(inst_df["dans_natura"].sum()) == 5
     assert int(inst_df["natura_a_1km"].sum()) == 97
     assert (inst_df["inst_adresse"] != "").sum() > 350
+    assert int(inst_df["longitude"].isna().sum()) == 0
+    assert int(inst_df["latitude"].isna().sum()) == 0
+    assert int(inst_df["inst_numero"].duplicated().sum()) == 0
+    assert ((inst_df["longitude"] >= -2.0) & (inst_df["longitude"] <= 2.0)).all()
+    assert ((inst_df["latitude"] >= 48.0) & (inst_df["latitude"] <= 50.2)).all()
+    assert round(float(inst_df["distance_natura_m"].median()), 1) == 3434.5
 
     dep_sum = compute_department_summary(inst_df)
     assert list(dep_sum["departement_code"]) == ["14", "27", "50", "61", "76"]
@@ -56,10 +62,11 @@ def test_dataset_counts_and_consistency():
     assert "ivt_moyen" in dep_sum.columns
     assert (dep_sum["ivt_moyen"] > 0).all()
 
-    hotspots = compute_natura_hotspots(inst_df, top_n=10)
-    assert not hotspots.empty
+    hotspots = compute_natura_hotspots(inst_df, top_n=12)
+    assert len(hotspots) == 12
     assert hotspots.iloc[0]["site"] == "Forêts et étangs du Perche"
     assert int(hotspots.iloc[0]["nb_installations"]) == 11
+    assert list(hotspots["nb_installations"].astype(int)) == [11, 9, 8, 7, 7, 7, 6, 5, 5, 4, 4, 3]
 
 
 def test_vigilance_index_four_pillars_and_separation():
@@ -89,6 +96,30 @@ def test_vigilance_index_four_pillars_and_separation():
 
     assert diagnostics["I613280001"].vigilance_index.score_total >= 65.0
     assert diagnostics["I501990004"].vigilance_index.score_total >= 70.0
+
+    ivt_counts = inst_df["ivt_niveau"].value_counts().to_dict()
+    assert ivt_counts.get("Vigilance prioritaire") == 22
+    assert ivt_counts.get("Vigilance élevée") == 51
+    assert ivt_counts.get("Vigilance modérée") == 24
+    assert ivt_counts.get("Veille courante") == 324
+
+    synthetic_far_cap = compute_vigilance_index(
+        dist_m=1005.0,
+        dist_zsc_m=1005.0,
+        dist_zps_m=1005.0,
+        dans_natura=False,
+        natura_1km=False,
+        zsc_1km=False,
+        zps_1km=False,
+        effective_sites_1km=0,
+        primary_typology=TYPOLOGIES["marais_estuaires"],
+        eq_tags=["Itinérance & plein air étendu"],
+        nb_eq=10,
+        site_1km_count=10,
+        commune_inst_count=5,
+    )
+    assert synthetic_far_cap.score_total == 39.9
+    assert synthetic_far_cap.level_label == "Veille courante"
 
 
 def test_effective_sites_guard_at_999m():
@@ -169,7 +200,20 @@ def test_streamlit_app_end_to_end():
     at.run()
     assert not at.exception
     assert at.session_state["selected_inst_id"] == "I613280001"
+    md_before = "\n".join(m.value for m in at.markdown)
+    assert "70.5 %" in md_before
+    assert "9.5 %</b> / 15 %" in md_before
 
+    for dep in ("Calvados", "Eure", "Manche", "Seine-Maritime"):
+        at.pills(key="f_depts").unselect(dep)
+    at.run()
+    assert not at.exception
+    assert at.session_state["selected_inst_id"] == "I613280001"
+    md_after = "\n".join(m.value for m in at.markdown)
+    assert "70.5 %" in md_after
+    assert "9.5 %</b> / 15 %" in md_after
+
+    at.pills(key="f_depts").select("Calvados")
     at.pills(key="f_depts").unselect("Orne").run()
     assert not at.exception
     assert at.session_state["selected_inst_id"] is None
