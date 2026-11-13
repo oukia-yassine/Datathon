@@ -301,7 +301,8 @@ def compute_vigilance_index(
         ter_parts.append(f"{commune_inst_count} inst. dans la commune (+{commune_density_pts:.1f})")
     territoire_detail = f"{dim_territoire:.1f} / 15 — " + ", ".join(ter_parts)
 
-    score_total = round(min(100.0, dim_distance + dim_habitats + dim_ecologie + dim_territoire), 1)
+    raw_total = round(min(100.0, dim_distance + dim_habitats + dim_ecologie + dim_territoire), 1)
+    score_total = raw_total if natura_1km else min(raw_total, 39.9)
 
     if score_total >= 70.0:
         level_label, level_color = "Vigilance prioritaire", "#b91c1c"

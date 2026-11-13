@@ -485,11 +485,12 @@ def get_theme_css(dark_mode: bool = False) -> str:
         background-color: {modebar_bg} !important;
         border: 1.5px solid {modebar_border} !important;
         border-radius: 8px !important;
-        padding: 0 !important;
+        padding: 2px 4px !important;
         margin: 0 !important;
         overflow: hidden !important;
         display: inline-flex !important;
-        align-items: stretch !important;
+        align-items: center !important;
+        gap: 0 !important;
         box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12) !important;
         opacity: 1 !important;
     }}
@@ -497,12 +498,13 @@ def get_theme_css(dark_mode: bool = False) -> str:
         background: {modebar_bg} !important;
         background-color: {modebar_bg} !important;
         margin: 0 !important;
-        padding: 4px 6px !important;
+        padding: 2px 3px !important;
         border: none !important;
         border-radius: 0 !important;
         box-shadow: none !important;
         display: inline-flex !important;
         align-items: center !important;
+        float: none !important;
     }}
     .js-plotly-plot .plotly .modebar-btn {{
         background: transparent !important;
@@ -616,8 +618,12 @@ def get_theme_css(dark_mode: bool = False) -> str:
         box-shadow: 0 10px 24px rgba(15, 23, 42, 0.35);
         z-index: 9999;
     }}
-    .hero-tip-wrap:hover .hero-tip-box,
-    .hero-tip-wrap:focus-within .hero-tip-box {{
+    .hero-pill:last-child .hero-tip-box {{
+        left: auto;
+        right: 0;
+    }}
+    .hero-pill:hover .hero-tip-box,
+    .hero-tip-wrap:hover .hero-tip-box {{
         display: block;
     }}
     .kpi-card {{
@@ -987,7 +993,7 @@ def render_kpi_row(
             "#0d9488",
             "Communes couvertes",
             f"{nb_communes}",
-            "Sur 352 communes normandes",
+            "Sur 352 communes équipées",
         ),
     ]
     for col, top_color, label, value_html, sub in cards:
@@ -1006,7 +1012,7 @@ def render_map_legend() -> None:
     st.markdown(
         """
         <div class="map-legend-bar">
-            <span><strong>Proximité :</strong></span>
+            <span><strong>Couleur des points (distance) :</strong></span>
             <span><span class="legend-dot" style="background:#b91c1c;"></span>À l’intérieur (0 m)</span>
             <span><span class="legend-dot" style="background:#ea580c;"></span>0 – 500 m</span>
             <span><span class="legend-dot" style="background:#ca8a04;"></span>500 – 1 000 m</span>
@@ -1388,7 +1394,7 @@ def render_french_table(
     scroll_h = int(height)
     est_table_h = 46 + len(df) * 38
     iframe_h = min(scroll_h + 18, max(92, est_table_h + 12))
-    popup_max_h = 520
+    popup_max_h = 345
 
     if dark_mode:
         t_text = "#f8fafc"
@@ -1407,6 +1413,8 @@ def render_french_table(
         t_popup_hover_col = "#4ade80"
         t_track_bg = "#334155"
         t_bar_col = "#38bdf8"
+        t_scroll_thumb = "#475569"
+        t_scroll_track = "#111827"
     else:
         t_text = "#0f172a"
         t_head_text = "#334155"
@@ -1424,6 +1432,8 @@ def render_french_table(
         t_popup_hover_col = "#15803d"
         t_track_bg = "#e2e8f0"
         t_bar_col = "#0284c7"
+        t_scroll_thumb = "#cbd5e1"
+        t_scroll_track = "#f8fafc"
 
     doc_html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -1436,7 +1446,7 @@ def render_french_table(
         padding: 2px 0 0 0;
         background: transparent;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 13.5px;
+        font-size: 13px;
         color: {t_text};
     }}
     #{root_id} {{
@@ -1469,6 +1479,20 @@ def render_french_table(
         border: 1px solid {t_border};
         border-radius: 10px;
         background: {t_bg};
+        scrollbar-width: thin;
+        scrollbar-color: {t_scroll_thumb} {t_scroll_track};
+    }}
+    #{root_id} .ft-scroll::-webkit-scrollbar {{
+        width: 8px;
+        height: 8px;
+    }}
+    #{root_id} .ft-scroll::-webkit-scrollbar-track {{
+        background: {t_scroll_track};
+        border-radius: 8px;
+    }}
+    #{root_id} .ft-scroll::-webkit-scrollbar-thumb {{
+        background: {t_scroll_thumb};
+        border-radius: 8px;
     }}
     #{root_id} table {{
         width: 100%;
@@ -1482,10 +1506,10 @@ def render_french_table(
         background: {t_head_bg};
         border-bottom: 1px solid {t_border};
         border-right: 1px solid {t_cell_border};
-        padding: 9px 10px;
+        padding: 8px 7px;
         text-align: left;
         font-weight: 700;
-        font-size: 12.8px;
+        font-size: 12.2px;
         color: {t_head_text};
         white-space: nowrap;
         vertical-align: middle;
@@ -1497,14 +1521,14 @@ def render_french_table(
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 6px;
+        gap: 4px;
     }}
     #{root_id} .ft-menu-btn {{
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
         border-radius: 5px;
         border: 1px solid {t_btn_border};
         background: {t_btn_bg};
@@ -1518,19 +1542,19 @@ def render_french_table(
         color: {t_text};
     }}
     #{root_id} tbody td {{
-        padding: 8px 10px;
+        padding: 7px 7px;
         border-bottom: 1px solid {t_cell_border};
         border-right: 1px solid {t_cell_border};
         color: {t_text};
         vertical-align: top;
-        line-height: 1.4;
-        font-size: 13.2px;
+        line-height: 1.35;
+        font-size: 12.6px;
     }}
     #{root_id} tbody tr:hover td {{
         background: {t_hover_bg};
     }}
     #{root_id} .ft-wide {{
-        min-width: 220px;
+        min-width: 135px;
         white-space: normal;
     }}
     #{root_id} .ft-num {{
@@ -1542,23 +1566,25 @@ def render_french_table(
         display: none;
         position: absolute;
         z-index: 999;
-        width: 280px;
+        width: 276px;
         max-height: {popup_max_h}px;
         overflow-y: auto;
         background: {t_popup_bg};
         border: 1px solid {t_btn_border};
         border-radius: 10px;
         box-shadow: 0 10px 26px rgba(15, 23, 42, 0.28);
-        padding: 7px;
+        padding: 6px;
+        scrollbar-width: thin;
+        scrollbar-color: {t_scroll_thumb} {t_popup_bg};
     }}
     #{root_id} .ft-popup-head {{
         font-weight: 700;
-        font-size: 12.8px;
+        font-size: 12.4px;
         color: {t_text};
         background: {t_popup_head_bg};
         border-radius: 6px;
-        padding: 6px 9px;
-        margin-bottom: 5px;
+        padding: 5px 8px;
+        margin-bottom: 4px;
         word-break: break-word;
     }}
     #{root_id} .ft-popup-item {{
@@ -1568,8 +1594,8 @@ def render_french_table(
         background: transparent;
         border: none;
         border-radius: 6px;
-        padding: 7px 9px;
-        font-size: 13px;
+        padding: 5px 8px;
+        font-size: 12.5px;
         color: {t_text};
         cursor: pointer;
     }}
@@ -1579,30 +1605,30 @@ def render_french_table(
     }}
     #{root_id} .ft-stats-box {{
         display: none;
-        margin-top: 6px;
-        padding: 8px;
+        margin-top: 4px;
+        padding: 6px 8px;
         border-top: 1px solid {t_border};
-        font-size: 12.5px;
+        font-size: 12px;
         color: {t_muted};
     }}
     #{root_id} .ft-stats-title {{
-        margin-top: 6px;
+        margin-top: 4px;
         font-weight: 700;
         color: {t_text};
     }}
     #{root_id} .ft-stat-kv {{
         display: flex;
         justify-content: space-between;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }}
     #{root_id} .ft-bar-row {{
-        margin-top: 6px;
+        margin-top: 4px;
     }}
     #{root_id} .ft-bar-lbl {{
         display: flex;
         justify-content: space-between;
         gap: 6px;
-        font-size: 11.8px;
+        font-size: 11.4px;
         margin-bottom: 2px;
     }}
     #{root_id} .ft-bar-lbl span:first-child {{
@@ -1612,7 +1638,7 @@ def render_french_table(
         max-width: 175px;
     }}
     #{root_id} .ft-bar-track {{
-        height: 6px;
+        height: 5px;
         background: {t_track_bg};
         border-radius: 999px;
         overflow: hidden;
@@ -1662,11 +1688,14 @@ def render_french_table(
             const baseH = scrollBox.offsetTop + scrollBox.offsetHeight + 8;
             let targetH = baseH;
             if (popup.style.display === "block") {{
-                const popBottom = popup.offsetTop + popup.scrollHeight + 14;
+                const popBottom = popup.offsetTop + popup.offsetHeight + 12;
                 if (popBottom > targetH) targetH = popBottom;
             }}
             if (window.frameElement) {{
                 window.frameElement.style.height = targetH + "px";
+                if (window.frameElement.parentElement) {{
+                    window.frameElement.parentElement.style.height = targetH + "px";
+                }}
             }}
         }} catch (_) {{}}
     }}
