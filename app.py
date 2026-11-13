@@ -97,9 +97,14 @@ def _reset_filters() -> None:
         "f_equip_types",
         "f_activites",
         "f_search",
+        "pending_inst_id",
     ):
         if key in st.session_state:
             del st.session_state[key]
+    st.session_state["selected_inst_id"] = None
+    st.session_state["_prev_selected_id"] = None
+    st.session_state["last_map_click"] = None
+    st.session_state["focus_selected_chk"] = False
 
 
 with st.sidebar:
@@ -180,7 +185,7 @@ with st.sidebar:
             | set(inst_df["zps_plus_proche_nom"].dropna().astype(str))
         )
         sel_natura_site = st.selectbox(
-            "Cibler un site Natura 2000",
+            "Site Natura 2000 le plus proche",
             options=["Tous les sites"] + natura_sites,
             index=0,
             key="f_natura_site",
@@ -264,7 +269,7 @@ st.markdown(
             <span class="hero-pill">
                 421 installations et 1 175 équipements équestres
                 <span class="hero-tip-wrap">
-                    <span class="hero-tip-btn" tabindex="0">?</span>
+                    <span class="hero-tip-btn">?</span>
                     <span class="hero-tip-box">
                         <strong>Installation vs équipement : quelle différence ?</strong><br/><br/>
                         <strong>Équipement équestre (1 175) :</strong> unité pratique ou infrastructure recensée sur le terrain (carrière, manège, piste de galop, écurie, parcours de cross…).<br/><br/>
@@ -276,7 +281,7 @@ st.markdown(
             <span class="hero-pill">
                 96 zones naturelles (82 ZSC et 14 ZPS)
                 <span class="hero-tip-wrap">
-                    <span class="hero-tip-btn" tabindex="0">?</span>
+                    <span class="hero-tip-btn">?</span>
                     <span class="hero-tip-box">
                         <strong>Que signifient ZSC et ZPS ?</strong><br/><br/>
                         <strong>ZSC (Zone Spéciale de Conservation) :</strong> site Natura 2000 désigné au titre de la directive <em>Habitats</em> pour protéger des milieux naturels, la flore et la faune (hors oiseaux).<br/><br/>
@@ -287,7 +292,7 @@ st.markdown(
             <span class="hero-pill">
                 IVT (Indicateur de Vigilance Territoriale)
                 <span class="hero-tip-wrap">
-                    <span class="hero-tip-btn" tabindex="0">?</span>
+                    <span class="hero-tip-btn">?</span>
                     <span class="hero-tip-box">
                         <strong>À quoi sert l'IVT ?</strong><br/>
                         Calculé en pourcentage, il classe les installations à examiner en priorité en combinant :
@@ -381,8 +386,8 @@ with tab_map:
         selected_id = st.session_state.get("selected_inst_id")
         if selected_id != st.session_state.get("_prev_selected_id"):
             st.session_state["_prev_selected_id"] = selected_id
-            if selected_id is not None:
-                st.session_state["focus_selected_chk"] = True
+            st.session_state["last_map_click"] = None
+            st.session_state["focus_selected_chk"] = selected_id is not None
 
         col_map, col_card = st.columns([7, 5], gap="large")
 
@@ -413,9 +418,10 @@ with tab_map:
                         ),
                     )
             with tb2:
+                if "focus_selected_chk" not in st.session_state:
+                    st.session_state["focus_selected_chk"] = True
                 focus_selected = st.checkbox(
                     "Zoomer sur la sélection",
-                    value=True,
                     disabled=(selected_id is None),
                     help=(
                         "Sélectionnez d'abord une installation sur la carte ou dans la liste ci-dessus pour pouvoir zoomer dessus."
@@ -448,12 +454,17 @@ with tab_map:
                 basemap=basemap_choice,
                 focus_selected=focus_selected,
             )
+            map_view_key = (
+                f"equivigie_main_map_{selected_id}"
+                if (selected_id and focus_selected)
+                else "equivigie_main_map_normandie"
+            )
             map_state = st_folium(
                 fmap,
                 height=520,
                 use_container_width=True,
                 returned_objects=["last_object_clicked"],
-                key="equivigie_main_map",
+                key=map_view_key,
             )
             render_map_legend()
 
@@ -610,7 +621,7 @@ def _render_chart(fig, title: str, *, height: int = 410, bottom_margin: int = 11
             namelength=-1,
         ),
     )
-    st.plotly_chart(fig, width="stretch", config=_PLOTLY_CONFIG)
+    st.plotly_chart(fig, width="stretch", config=_PLOTLY_CONFIG, theme=None)
 
 
 with tab_dash:
@@ -763,7 +774,7 @@ with tab_dash:
                 barmode="stack",
                 xaxis_title="<b>Indice IVT (%)</b>",
                 yaxis_title="",
-                xaxis=dict(range=[0, 102]),
+                xaxis=dict(range=[0, 102], autorange=False),
                 legend=dict(
                     orientation="h",
                     yanchor="top",
@@ -822,7 +833,7 @@ with tab_dash:
                 line_dash="dash",
                 line_color=vline_col,
                 annotation_text="Rayon 1 km (1 000 m)",
-                annotation_position="top left",
+                annotation_position="top right",
                 annotation_font=dict(size=11.5, color=vline_col),
                 annotation_bgcolor=ann_bg,
             )
@@ -845,8 +856,8 @@ with tab_dash:
                 annotation_bgcolor=ann_bg,
             )
             fig_scatter.update_layout(
-                xaxis=dict(range=[-350, max_scatter_x]),
-                yaxis=dict(range=[0, 102]),
+                xaxis=dict(range=[-350, max_scatter_x], autorange=False),
+                yaxis=dict(range=[0, 102], autorange=False),
                 legend=dict(
                     orientation="h",
                     xref="container",
